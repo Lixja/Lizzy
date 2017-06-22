@@ -1,9 +1,12 @@
 package brain
 
-import "math/rand"
-import "fmt"
-import "time"
-import "strconv"
+import (
+	"fmt"
+	"math"
+	"math/rand"
+	"strconv"
+	"time"
+)
 
 type Network struct {
 	Deep [][]Neuron
@@ -20,6 +23,8 @@ func (n *Network) Train(tvalue float64, InputV, WantedResult []float64, iteratio
 	var backupw []float64
 	var dp int
 	var dlp int
+	again := false
+	oldpon := 0
 	for c := 0; c < iterations; c++ {
 		Results := n.Think(InputV)
 		difference := 0.0
@@ -34,8 +39,17 @@ func (n *Network) Train(tvalue float64, InputV, WantedResult []float64, iteratio
 		}
 		if pon < 0 {
 			tvalue = -tvalue
+			if oldpon > 0 {
+				again = false
+				oldpon = 0
+			}
 		} else if pon == 0 {
 			return true
+		} else {
+			if oldpon < 0 {
+				oldpon = 0
+				again = false
+			}
 		}
 		if fast {
 			backup = n.Backup()
@@ -45,13 +59,16 @@ func (n *Network) Train(tvalue float64, InputV, WantedResult []float64, iteratio
 				}
 			}
 		} else {
-			dp = rand.Intn(len(n.Deep))
-			dlp = rand.Intn(len(n.Deep[dp]))
+			if !again {
+				dp = rand.Intn(len(n.Deep))
+				dlp = rand.Intn(len(n.Deep[dp]))
+			} else {
+				again = false
+			}
 			backupw = make([]float64, len(n.Deep[dp][dlp].Weight))
 			copy(backupw, n.Deep[dp][dlp].Weight)
 			n.Deep[dp][dlp].modify(tvalue)
 		}
-		Results = nil
 		Results = n.Think(InputV)
 		ndifference := 0.0
 		for i, res := range WantedResult {
@@ -68,11 +85,14 @@ func (n *Network) Train(tvalue float64, InputV, WantedResult []float64, iteratio
 			} else {
 				copy(n.Deep[dp][dlp].Weight, backupw)
 			}
-		}
-		for i := 0.0; i < 100.0; i += 10 {
-			if (float64(c) / (float64(iterations) / 100)) == i {
-				write("Training completed: " + strconv.FormatFloat(i, 'f', -1, 64) + "%")
+		} else if ndifference < difference {
+			if !fast {
+				again = true
+				oldpon = pon
 			}
+		}
+		if math.Mod(float64(c)/(float64(iterations)/100), 10) == 0 {
+			write("Training completed: " + strconv.FormatFloat((float64(c)/(float64(iterations)/100)), 'f', -1, 64) + "%")
 		}
 	}
 	return false

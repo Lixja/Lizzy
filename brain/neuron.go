@@ -35,6 +35,6 @@ func (n *Neuron) DoTheThing(v float64, output *[]float64) {
 
 func (n *Neuron) modify(mval float64) {
 	for i := 0; i < len(n.ConnectionsO); i++ {
-		n.Weight[i] += rand.Float64() * mval
+		n.Weight[i] += mval
 	}
 }
