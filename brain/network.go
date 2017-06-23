@@ -12,23 +12,16 @@ type Network struct {
 	Deep [][]Neuron
 }
 
-func (n *Network) Train(tvalue float64, InputV, WantedResult []float64, iterations int, fast bool) bool {
+func (n *Network) TrainF(tvalue float64, InputV, WantedResult []float64, iterations int) bool {
 	write("Training Brain")
-	if fast {
-		write("FastTraining")
-	} else {
-		write("SlowTraining")
-	}
+	write("FastTraining")
 	var backup *Network
-	var backupw []float64
-	var dp int
-	var dlp int
-	again := false
-	oldpon := 0
+	changed := 0.0
 	for c := 0; c < iterations; c++ {
 		Results := n.Think(InputV)
 		difference := 0.0
 		pon := 0
+		mvalue := tvalue
 		for i, res := range WantedResult {
 			difference += positive(res - Results[i])
 			if res > Results[i] {
@@ -38,7 +31,65 @@ func (n *Network) Train(tvalue float64, InputV, WantedResult []float64, iteratio
 			}
 		}
 		if pon < 0 {
-			tvalue = -tvalue
+			mvalue = -tvalue
+		} else if pon == 0 {
+			return true
+		}
+
+		backup = n.Backup()
+		for i := 0; i < len(n.Deep); i++ {
+			for i2 := 0; i2 < len(n.Deep[i]); i2++ {
+				n.Deep[i][i2].modify(mvalue)
+			}
+		}
+
+		Results = n.Think(InputV)
+		ndifference := 0.0
+		for i, res := range WantedResult {
+			ndifference += positive(res - Results[i])
+		}
+		if ndifference > difference {
+			for i := 0; i < len(n.Deep); i++ {
+				for i2 := 0; i2 < len(n.Deep[i]); i2++ {
+					n.Deep[i][i2].Weight = backup.Deep[i][i2].Weight
+				}
+			}
+
+		}
+		if math.Mod(float64(c)/(float64(iterations)/100), 10) == 0 {
+			write("Training completed: " + strconv.FormatFloat((float64(c)/(float64(iterations)/100)), 'f', -1, 64) + "% - " + strconv.FormatFloat(difference, 'f', -1, 64))
+			if difference == changed {
+				return false
+			}
+			changed = difference
+		}
+	}
+	return false
+}
+func (n *Network) TrainS(tvalue float64, InputV, WantedResult []float64, iterations int) bool {
+	write("Training Brain")
+	write("SlowTraining")
+	var backupw []float64
+	var dp int
+	var dlp int
+	again := false
+	oldpon := 0
+	changed := 0.0
+	for c := 0; c < iterations; c++ {
+		Results := n.Think(InputV)
+		difference := 0.0
+		pon := 0
+		mvalue := tvalue
+		for i, res := range WantedResult {
+			difference += positive(res - Results[i])
+			if res > Results[i] {
+				pon++
+			} else if res < Results[i] {
+				pon--
+			}
+		}
+		if pon < 0 {
+			mvalue = -tvalue
 			if oldpon > 0 {
 				again = false
 				oldpon = 0
@@ -51,48 +102,119 @@ func (n *Network) Train(tvalue float64, InputV, WantedResult []float64, iteratio
 				again = false
 			}
 		}
-		if fast {
-			backup = n.Backup()
-			for i := 0; i < len(n.Deep); i++ {
-				for i2 := 0; i2 < len(n.Deep[i]); i2++ {
-					n.Deep[i][i2].modify(tvalue)
-				}
-			}
+
+		if !again {
+			dp = rand.Intn(len(n.Deep))
+			dlp = rand.Intn(len(n.Deep[dp]))
 		} else {
-			if !again {
-				dp = rand.Intn(len(n.Deep))
-				dlp = rand.Intn(len(n.Deep[dp]))
-			} else {
-				again = false
-			}
-			backupw = make([]float64, len(n.Deep[dp][dlp].Weight))
-			copy(backupw, n.Deep[dp][dlp].Weight)
-			n.Deep[dp][dlp].modify(tvalue)
+			again = false
 		}
+		backupw = make([]float64, len(n.Deep[dp][dlp].Weight))
+		copy(backupw, n.Deep[dp][dlp].Weight)
+		n.Deep[dp][dlp].modify(mvalue)
+
 		Results = n.Think(InputV)
 		ndifference := 0.0
 		for i, res := range WantedResult {
 			ndifference += positive(res - Results[i])
 		}
 		if ndifference > difference {
-			if fast {
-				for i := 0; i < len(n.Deep); i++ {
-					for i2 := 0; i2 < len(n.Deep[i]); i2++ {
-						n.Deep[i][i2].Weight = backup.Deep[i][i2].Weight
-					}
-				}
-
-			} else {
-				copy(n.Deep[dp][dlp].Weight, backupw)
-			}
+			copy(n.Deep[dp][dlp].Weight, backupw)
 		} else if ndifference < difference {
-			if !fast {
-				again = true
-				oldpon = pon
-			}
+			again = true
+			oldpon = pon
 		}
 		if math.Mod(float64(c)/(float64(iterations)/100), 10) == 0 {
-			write("Training completed: " + strconv.FormatFloat((float64(c)/(float64(iterations)/100)), 'f', -1, 64) + "%")
+			write("Training completed: " + strconv.FormatFloat((float64(c)/(float64(iterations)/100)), 'f', -1, 64) + "% - " + strconv.FormatFloat(difference, 'f', -1, 64))
+			if difference == changed {
+				return false
+			}
+			changed = difference
+		}
+	}
+	return false
+}
+
+func (n *Network) TrainL(tvalue float64, InputV, WantedResult []float64, breakup int) bool {
+	write("Training Brain")
+	write("LoopTraining")
+	var backupw []float64
+	var dp int
+	var dlp int
+	again := false
+	oldpon := 0
+	changed := 0
+	randomPon := false
+	for i := 0; changed != breakup; i++ {
+		Results := n.Think(InputV)
+		difference := 0.0
+		pon := 0
+		mvalue := tvalue
+		for i, res := range WantedResult {
+			difference += positive(res - Results[i])
+			if res > Results[i] {
+				pon++
+			} else if res < Results[i] {
+				pon--
+			}
+		}
+		if pon < 0 {
+			mvalue = -tvalue
+			if oldpon > 0 {
+				again = false
+				oldpon = 0
+			}
+		} else if pon == 0 {
+			return true
+		} else {
+			if oldpon < 0 {
+				oldpon = 0
+				again = false
+			}
+		}
+		if randomPon {
+			pon := rand.Intn(2)
+			if pon == 0 {
+				mvalue = -tvalue
+			} else {
+				mvalue = tvalue
+			}
+
+		}
+		if again {
+			if oldpon < 0 {
+				mvalue = -tvalue
+			} else {
+				mvalue = tvalue
+			}
+		}
+		if !again {
+			dp = rand.Intn(len(n.Deep))
+			dlp = rand.Intn(len(n.Deep[dp]))
+		} else {
+			again = false
+		}
+		backupw = make([]float64, len(n.Deep[dp][dlp].Weight))
+		copy(backupw, n.Deep[dp][dlp].Weight)
+		n.Deep[dp][dlp].modify(mvalue)
+		Results = n.Think(InputV)
+		ndifference := 0.0
+		for i, res := range WantedResult {
+			ndifference += positive(res - Results[i])
+		}
+		if ndifference > difference {
+			copy(n.Deep[dp][dlp].Weight, backupw)
+			changed++
+		} else if ndifference < difference {
+			changed = 0
+			again = true
+			oldpon = pon
+		}
+		if math.Mod(float64(i), float64(breakup)) == 0 {
+			write("Trainingr running: " + strconv.Itoa(i) + ". Loop - " + strconv.FormatFloat(difference, 'f', -1, 64))
+		}
+		if(changed > breakup/2){
+			randomPon = true
 		}
 	}
 	return false

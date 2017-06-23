@@ -2,43 +2,65 @@ package main
 
 import (
 	"LizzyAI/brain"
-	util "LizzyAI/utils"
+	"LizzyAI/utils"
+	"bufio"
 	"fmt"
+	"os"
 	"strconv"
 )
 
 func main() {
-	liz := brain.GenerateBrain(5, 5, 2, 7)
-	Inputs := []float64{72, 65, 76, 76, 79}
-	Converted := []int{0, 0, 0, 0, 0}
+	output := ""
+	reader := bufio.NewReader(os.Stdin)
+	text, _ := reader.ReadString('\n')
+	text = "BYE"
+	var liz *brain.Network
+	for output != text {
+		output, liz = startLizzy(utils.GetAsciiI(text))
+	}
+	fmt.Println(*liz)
+
+}
+
+func startLizzy(textI []int) (string, *brain.Network) {
+	liz := brain.GenerateBrain(len(textI), len(textI), 30, 30)
+	var Inputs []float64
+	InputInt := textI
+	for _, runI := range textI {
+		Inputs = append(Inputs, float64(runI))
+	}
+	var Converted []int
 	Outputs := liz.Think(Inputs)
-	Converted = []int{int(Outputs[0]), int(Outputs[1]), int(Outputs[2]), int(Outputs[3]), int(Outputs[4])}
-	write("72 - " + strconv.Itoa(Converted[0]))
-	write("65 - " + strconv.Itoa(Converted[1]))
-	write("76 - " + strconv.Itoa(Converted[2]))
-	write("76 - " + strconv.Itoa(Converted[3]))
-	write("79 - " + strconv.Itoa(Converted[4]))
-	write(util.GetAsciiC(Converted[0]) + util.GetAsciiC(Converted[1]) + util.GetAsciiC(Converted[2]) + util.GetAsciiC(Converted[3]) + util.GetAsciiC(Converted[4]))
-	liz.Train(0.0001, Inputs, Inputs, 100000, true)
+	Converted = convert(Outputs)
+	print(InputInt, Converted)
+	write(utils.GetAsciiS(Converted))
+	liz.TrainF(0.001, Inputs, Inputs, 5000)
 	Outputs = nil
 	Outputs = liz.Think(Inputs)
-	Converted = []int{int(Outputs[0]), int(Outputs[1]), int(Outputs[2]), int(Outputs[3]), int(Outputs[4])}
-	write("72 - " + strconv.Itoa(Converted[0]))
-	write("65 - " + strconv.Itoa(Converted[1]))
-	write("76 - " + strconv.Itoa(Converted[2]))
-	write("76 - " + strconv.Itoa(Converted[3]))
-	write("79 - " + strconv.Itoa(Converted[4]))
-	write(util.GetAsciiC(Converted[0]) + util.GetAsciiC(Converted[1]) + util.GetAsciiC(Converted[2]) + util.GetAsciiC(Converted[3]) + util.GetAsciiC(Converted[4]))
-	liz.Train(0.001, Inputs, Inputs, 10000000, false)
+	Converted = convert(Outputs)
+	print(InputInt, Converted)
+	write(utils.GetAsciiS(Converted))
+	liz.TrainS(0.001, Inputs, Inputs, 100000)
 	Outputs = nil
 	Outputs = liz.Think(Inputs)
-	Converted = []int{int(Outputs[0]), int(Outputs[1]), int(Outputs[2]), int(Outputs[3]), int(Outputs[4])}
-	write("72 - " + strconv.Itoa(Converted[0]))
-	write("65 - " + strconv.Itoa(Converted[1]))
-	write("76 - " + strconv.Itoa(Converted[2]))
-	write("76 - " + strconv.Itoa(Converted[3]))
-	write("79 - " + strconv.Itoa(Converted[4]))
-	write(util.GetAsciiC(Converted[0]) + util.GetAsciiC(Converted[1]) + util.GetAsciiC(Converted[2]) + util.GetAsciiC(Converted[3]) + util.GetAsciiC(Converted[4]))
+	Converted = convert(Outputs)
+	print(InputInt, Converted)
+	liz.TrainL(0.0001, Inputs, Inputs, 20000)
+	Outputs = nil
+	Outputs = liz.Think(Inputs)
+	Converted = convert(Outputs)
+	print(InputInt, Converted)
+	hello := utils.GetAsciiS(Converted)
+	write(hello)
+	return hello, liz
+}
+
+func convert(f []float64) []int {
+	var res []int
+	for _, ff := range f {
+		res = append(res, int(ff))
+	}
+	return res
 }
 
 func positive(i int) int {
@@ -47,6 +69,13 @@ func positive(i int) int {
 	} else {
 		return -i
 	}
+}
+
+func print(r []int, o []int) {
+	for i, sol := range r {
+		write(strconv.Itoa(sol) + " - " + strconv.Itoa(o[i]))
+	}
+
 }
 
 func write(msg string) {
