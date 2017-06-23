@@ -13,7 +13,6 @@ func main() {
 	output := ""
 	reader := bufio.NewReader(os.Stdin)
 	text, _ := reader.ReadString('\n')
-	text = "BYE"
 	var liz *brain.Network
 	for output != text {
 		output, liz = startLizzy(utils.GetAsciiI(text))
